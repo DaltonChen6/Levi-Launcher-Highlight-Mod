@@ -17,28 +17,62 @@ constexpr uintptr_t kTagMask = 0x00FFFFFFFFFFFFFF;
 
 inline bool IsValidPointer(uintptr_t p) {
   uintptr_t masked = p & kTagMask;
-  return (masked >= 0x10000000ULL && masked <= 0x00007FFFFFFFFFFFULL && (masked & 7) == 0);
+  return (masked >= 0x10000ULL && masked <= 0x00007FFFFFFFFFFFULL);
+}
+
+inline bool IsAlignedPointer(uintptr_t p, size_t alignment = 8) {
+  uintptr_t masked = p & kTagMask;
+  return (masked >= 0x10000ULL && masked <= 0x00007FFFFFFFFFFFULL && (masked & (alignment - 1)) == 0);
+}
+
+inline bool IsValidFunctionPointer(uintptr_t p) {
+  uintptr_t masked = p & kTagMask;
+  return (masked >= 0x10000ULL && masked <= 0x00007FFFFFFFFFFFULL && (masked & 3) == 0);
 }
 
 inline bool IsMemoryReadable(const void *p, size_t len = 1) {
-  if (!p) return false;
-  uintptr_t masked = reinterpret_cast<uintptr_t>(p) & kTagMask;
-  if (masked < 0x10000000ULL || masked > 0x00007FFFFFFFFFFFULL) return false;
+  if (!p || len == 0) return false;
+  uintptr_t start = reinterpret_cast<uintptr_t>(p) & kTagMask;
+  if (start < 0x10000ULL || start > 0x00007FFFFFFFFFFFULL) return false;
+  uintptr_t end = (reinterpret_cast<uintptr_t>(p) + len - 1) & kTagMask;
+  if (end < 0x10000ULL || end > 0x00007FFFFFFFFFFFULL) return false;
+  if (end < start) return false;
+
   static std::mutex sPipeMutex;
   std::lock_guard<std::mutex> lock(sPipeMutex);
   static int sPipe[2] = {-1, -1};
   if (sPipe[0] < 0) {
     if (pipe2(sPipe, O_CLOEXEC | O_NONBLOCK) != 0) {
-      return true;
+      return false;
     }
   }
-  ssize_t ret = write(sPipe[1], p, 1);
-  if (ret > 0) {
-    char tmp;
-    read(sPipe[0], &tmp, 1);
-    return true;
+
+  // Drain any stray bytes in pipe
+  char drainBuf[32];
+  while (read(sPipe[0], drainBuf, sizeof(drainBuf)) > 0) {}
+
+  auto probeByte = [&](const void *ptr) -> bool {
+    ssize_t ret = write(sPipe[1], ptr, 1);
+    if (ret == 1) {
+      char tmp;
+      read(sPipe[0], &tmp, 1);
+      return true;
+    }
+    return false;
+  };
+
+  const char *base = reinterpret_cast<const char *>(start);
+  if (!probeByte(base)) return false;
+
+  if ((start >> 12) != (end >> 12)) {
+    if (!probeByte(base + (len - 1))) return false;
+    if (len > 4096) {
+      for (uintptr_t page = (start | 0xFFF) + 1; page < end; page += 0x1000) {
+        if (!probeByte(base + (page - start))) return false;
+      }
+    }
   }
-  return (errno != EFAULT);
+  return true;
 }
 
 inline std::string TranslateItemSafely(const std::string &rawName) {
@@ -48,24 +82,30 @@ inline std::string TranslateItemSafely(const std::string &rawName) {
   return BlockTranslator::translateItem(rawName);
 }
 
-// 从 ItemStack 中提取 Item*
+// 从 ItemStack 中提取 Item* (全层级只读安全校验，防止空指针与 UAF)
 inline void *GetItemFromStack(void *itemStack) {
   if (!itemStack || !IsValidPointer(reinterpret_cast<uintptr_t>(itemStack))) {
     return nullptr;
   }
+  if (!IsMemoryReadable(reinterpret_cast<const void *>((uintptr_t)itemStack + 8), 8)) {
+    return nullptr;
+  }
   uintptr_t p1 = *reinterpret_cast<uintptr_t *>((uintptr_t)itemStack + 8);
-  if (!p1 || !IsValidPointer(p1) || (p1 & 7) != 0) {
+  if (!p1 || !IsAlignedPointer(p1, 8)) {
+    return nullptr;
+  }
+  if (!IsMemoryReadable(reinterpret_cast<const void *>(p1), 8)) {
     return nullptr;
   }
   uintptr_t p2 = *reinterpret_cast<uintptr_t *>(p1);
-  if (p2 && IsValidPointer(p2) && (p2 & 7) == 0) {
+  if (p2 && IsAlignedPointer(p2, 8)) {
     return reinterpret_cast<void *>(p2);
   }
-  return reinterpret_cast<void *>(p1);
+  return nullptr;
 }
 
 inline std::string ReadLibcppString(const void *p) {
-  if (!p || !IsValidPointer(reinterpret_cast<uintptr_t>(p))) {
+  if (!p || !IsValidPointer(reinterpret_cast<uintptr_t>(p)) || !IsMemoryReadable(p, 24)) {
     return {};
   }
   const uint8_t *bp = static_cast<const uint8_t *>(p);
@@ -91,9 +131,9 @@ inline std::string ReadLibcppString(const void *p) {
     std::memcpy(&size, bp + 8, 8);
     std::memcpy(&dataPtr, bp + 16, 8);
     uintptr_t masked = dataPtr & kTagMask;
-    if (size > 0 && size < 256 && masked >= 0x1000000ULL && masked <= 0x00007FFFFFFFFFFFULL &&
+    if (size > 0 && size < 256 && masked >= 0x10000ULL && masked <= 0x00007FFFFFFFFFFFULL &&
         IsMemoryReadable(reinterpret_cast<const void *>(dataPtr), size)) {
-      const char *text = reinterpret_cast<const char *>(dataPtr);
+      const char *text = reinterpret_cast<const char *>(masked);
       if (isValidText(text, size)) return std::string(text, size);
     }
   }
@@ -195,11 +235,18 @@ inline std::string GetItemName(void *item) {
     return {};
   }
   static const uintptr_t kItemOffsets[] = {0x90, 0x88, 0x60, 0x58, 0xe0, 0xd8, 0xb0, 0xa8};
+  std::string fallback;
   for (uintptr_t off : kItemOffsets) {
     std::string s = ReadLibcppString(reinterpret_cast<const void *>((uintptr_t)item + off));
-    if (!s.empty()) return s;
+    if (s.empty()) continue;
+    if (s.rfind("minecraft:", 0) == 0 || s.rfind("item.", 0) == 0) {
+      return s;
+    }
+    if (s.size() >= 2 && s.find('\xa7') == std::string::npos) {
+      if (fallback.empty()) fallback = s;
+    }
   }
-  return {};
+  return fallback;
 }
 
 inline int64_t PosToKey(int32_t x, int32_t y, int32_t z) {

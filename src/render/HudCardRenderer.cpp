@@ -26,10 +26,11 @@ ImVec4 HudCardRenderer::getQualityColor(const std::string &name, float timeSec) 
       name.find("紫水晶") != std::string::npos || name.find("amethyst") != std::string::npos) {
     return ImVec4(0.95f, 0.38f, 0.98f, 1.0f);
   }
-  // 稀有 (Rare): 青金石 / 红石 / 绿宝石 / 金锭 -> 水青海蓝
-  if (name.find("金") != std::string::npos || name.find("gold") != std::string::npos ||
+  // 稀有 (Rare): 青金石 / 红石 / 绿宝石 / 金锭 -> 水青海蓝 (排除金合欢木与郁金香花)
+  bool isAcaciaOrTulip = (name.find("金合欢") != std::string::npos || name.find("郁金香") != std::string::npos);
+  if (!isAcaciaOrTulip && (name.find("金") != std::string::npos || name.find("gold") != std::string::npos ||
       name.find("绿宝石") != std::string::npos || name.find("emerald") != std::string::npos ||
-      name.find("红石") != std::string::npos || name.find("redstone") != std::string::npos) {
+      name.find("红石") != std::string::npos || name.find("redstone") != std::string::npos)) {
     return ImVec4(0.35f, 0.85f, 1.0f, 1.0f);
   }
   // 罕见 (Uncommon): 铁 / 铜 / 煤炭 -> 翠绿荧光
@@ -45,6 +46,10 @@ void HudCardRenderer::renderMainCard(const std::string &text,
                                      const ContainerDisplayData &containerData,
                                      const EntityDisplayData &entityData,
                                      float timeSec) {
+  if (!entityData.hasEntity && text.empty() && !containerData.hasContainer) {
+    return;
+  }
+
   ImGuiIO &io = ImGui::GetIO();
   ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.14f),
                           ImGuiCond_Always, ImVec2(0.5f, 0.0f));
@@ -124,7 +129,8 @@ void HudCardRenderer::renderMainCard(const std::string &text,
     ImGui::Spacing();
 
     if (containerData.specialType == SpecialContainerType::Furnace) {
-      ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "【熔炉状态】");
+      const char *furnaceTitle = containerData.containerTitle.empty() ? "熔炉" : containerData.containerTitle.c_str();
+      ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "【%s状态】", furnaceTitle);
       if (containerData.isCooking) {
         ImGui::Text("烧炼进度: %.0f%% (剩余 %.1f秒)",
                     containerData.cookProgress * 100.0f, containerData.cookSecondsLeft);

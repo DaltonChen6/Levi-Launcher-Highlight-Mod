@@ -36,15 +36,17 @@ bool ChestHandler::inspect(void *region, void *blockActor, const int32_t *blockP
   } else if (blockActor && IsValidPointer(reinterpret_cast<uintptr_t>(blockActor))) {
     if (isChest && IsMemoryReadable(reinterpret_cast<const void *>((uintptr_t)blockActor + 0x278), 24)) {
       uintptr_t pairedPtr = *reinterpret_cast<const uintptr_t *>((uintptr_t)blockActor + 0x278);
-      if (pairedPtr != 0 && IsValidPointer(pairedPtr) &&
-          IsMemoryReadable(reinterpret_cast<const void *>(pairedPtr), 0x20)) {
+      int32_t px = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x280);
+      int32_t py = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x284);
+      int32_t pz = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x288);
+      bool isAdjacent = (py == blockPos[1] && (std::abs(px - blockPos[0]) + std::abs(pz - blockPos[2]) == 1));
+      if (pairedPtr != 0 && (isAdjacent || (IsValidPointer(pairedPtr) && IsMemoryReadable(reinterpret_cast<const void *>(pairedPtr), 0x20)))) {
         isDoubleChest = true;
         totalSlots = 54;
-        pairedPos[0] = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x280);
-        pairedPos[1] = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x284);
-        pairedPos[2] = *reinterpret_cast<const int32_t *>((uintptr_t)blockActor + 0x288);
-        if (pairedPos[1] >= -64 && pairedPos[1] <= 320 &&
-            std::abs(pairedPos[0]) < 30000000 && std::abs(pairedPos[2]) < 30000000) {
+        if (isAdjacent) {
+          pairedPos[0] = px;
+          pairedPos[1] = py;
+          pairedPos[2] = pz;
           hasPairedPos = true;
         }
       }
@@ -52,7 +54,8 @@ bool ChestHandler::inspect(void *region, void *blockActor, const int32_t *blockP
 
     if (!isDoubleChest) {
       uintptr_t *vt = *reinterpret_cast<uintptr_t **>(blockActor);
-      if (vt && IsValidPointer(reinterpret_cast<uintptr_t>(vt)) && vt[75] && IsValidPointer(vt[75])) {
+      if (vt && IsValidPointer(reinterpret_cast<uintptr_t>(vt)) &&
+          IsMemoryReadable(vt, 76 * sizeof(uintptr_t)) && vt[75] && IsValidFunctionPointer(vt[75])) {
         auto getSize = reinterpret_cast<int (*)(void *)>(vt[75]);
         int sz = getSize(blockActor);
         if (sz >= 1 && sz <= 108) {
@@ -72,16 +75,43 @@ bool ChestHandler::inspect(void *region, void *blockActor, const int32_t *blockP
     return (slots > 27) ? "大箱子" : "箱子";
   };
 
-  // 2. 优先读取已缓存的同步数据（经由玩家打开 GUI 实时同步过）
+  // 2. 优先读取已缓存的同步数据（双箱双向时间戳对齐，杜绝脏数据与显示延迟）
+  if (isDoubleChest && !hasPairedPos) {
+    static const int32_t kOffsets[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (const auto &off : kOffsets) {
+      int32_t nx = blockPos[0] + off[0], ny = blockPos[1], nz = blockPos[2] + off[1];
+      int64_t nKey = PosToKey(nx, ny, nz);
+      ContainerCacheEntry nEntry;
+      if (ContainerCache::get().getContainer(nKey, nEntry) && nEntry.totalSlots > 27) {
+        pairedPos[0] = nx; pairedPos[1] = ny; pairedPos[2] = nz;
+        hasPairedPos = true;
+        break;
+      }
+    }
+  }
+
   ContainerCacheEntry cachedEntry;
   bool hasCache = ContainerCache::get().getContainer(posKey, cachedEntry);
-  if (!hasCache && isDoubleChest && hasPairedPos) {
-    // 精确双箱对侧坐标检索：直接查询配对箱坐标，零误判、零污染邻近独立箱子
+  if (isDoubleChest && hasPairedPos) {
     int64_t pairedKey = PosToKey(pairedPos[0], pairedPos[1], pairedPos[2]);
-    if (ContainerCache::get().getContainer(pairedKey, cachedEntry) && cachedEntry.totalSlots > 27) {
+    ContainerCacheEntry pairedEntry;
+    bool hasPairedCache = ContainerCache::get().getContainer(pairedKey, pairedEntry);
+    if (hasPairedCache && (!hasCache || pairedEntry.lastUpdated > cachedEntry.lastUpdated)) {
+      cachedEntry = pairedEntry;
       hasCache = true;
-      // 将配对缓存精准赋予当前这半边箱子，后续查询 O(1) 直达
       ContainerCache::get().setContainer(posKey, cachedEntry);
+    } else if (hasCache && (!hasPairedCache || cachedEntry.lastUpdated > pairedEntry.lastUpdated)) {
+      ContainerCache::get().setContainer(pairedKey, cachedEntry);
+    }
+  }
+
+  // 物理拆分/合并状态对齐
+  if (hasCache && isChest) {
+    if (!isDoubleChest && cachedEntry.totalSlots > 27) {
+      cachedEntry.totalSlots = 27;
+      if (cachedEntry.filledSlots > 27) cachedEntry.filledSlots = 27;
+    } else if (isDoubleChest && cachedEntry.totalSlots <= 27) {
+      cachedEntry.totalSlots = 54;
     }
   }
 
@@ -98,10 +128,11 @@ bool ChestHandler::inspect(void *region, void *blockActor, const int32_t *blockP
   // 3. 无缓存时，尝试直接读取 BlockActor（对本地放置的潜影盒等带 NBT 方块有效）
   if (blockActor && IsValidPointer(reinterpret_cast<uintptr_t>(blockActor))) {
     uintptr_t *vt = *reinterpret_cast<uintptr_t **>(blockActor);
-    if (vt && IsValidPointer(reinterpret_cast<uintptr_t>(vt))) {
+    if (vt && IsValidPointer(reinterpret_cast<uintptr_t>(vt)) &&
+        IsMemoryReadable(vt, 78 * sizeof(uintptr_t))) {
       auto readItemFromSlot = [&](int slot) -> void * {
         if (isChest || isBarrel || isShulker) {
-          if (vt[77] && IsValidPointer(vt[77])) {
+          if (vt[77] && IsValidFunctionPointer(vt[77])) {
             auto getItem = reinterpret_cast<void *(*)(void *, int)>(vt[77]);
             return getItem(blockActor, slot);
           }

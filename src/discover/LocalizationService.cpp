@@ -21,11 +21,19 @@ bool gHookInstalled = false;
 
 std::atomic<void *> gCachedLocalization{nullptr};
 std::string gCachedLanguageCode;
+static std::string gActiveLangCode = "zh_CN";
 
 void *HookSlot15Detour(void *self, void *a1, void *a2, void *a3) {
   if (self && !gI18nInstance.load(std::memory_order_relaxed)) {
     gI18nInstance.store(self, std::memory_order_relaxed);
     __android_log_print(ANDROID_LOG_INFO, "VH_I18n", "Captured I18n singleton: %p", self);
+  }
+  if (a1 && IsValidPointer(reinterpret_cast<uintptr_t>(a1))) {
+    std::string code = ReadLibcppString(a1);
+    if (!code.empty() && code.size() <= 16) {
+      gActiveLangCode = code;
+      __android_log_print(ANDROID_LOG_INFO, "VH_I18n", "Active language code: %s", code.c_str());
+    }
   }
   auto orig = reinterpret_cast<void *(*)(void *, void *, void *, void *)>(gOrigSlot15);
   if (orig) {
@@ -73,14 +81,14 @@ void *GetOrUpdateLocalization() {
   }
 
   uintptr_t fnSlot24 = vt[24];
-  if (!fnSlot24 || !IsValidPointer(fnSlot24)) {
+  if (!fnSlot24 || !IsValidFunctionPointer(fnSlot24)) {
     return nullptr;
   }
 
 #if defined(__aarch64__)
   alignas(16) uintptr_t sptrBuf[2] = {0, 0};
-  std::string fallbackLang = "en_US";
-  CallGetLocalization(fnSlot24, i18n, &fallbackLang, sptrBuf);
+  std::string targetLang = gActiveLangCode.empty() ? "zh_CN" : gActiveLangCode;
+  CallGetLocalization(fnSlot24, i18n, &targetLang, sptrBuf);
 
   uintptr_t locPtr = sptrBuf[0];
   if (locPtr && IsValidPointer(locPtr) &&

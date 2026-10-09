@@ -69,7 +69,8 @@ static void syncDestroyProgress(void *gm, const int32_t *pos, std::atomic<bool> 
 void Discovery::onClientUpdate(void *ci) {
   if (!ci || !IsValidPointer(reinterpret_cast<uintptr_t>(ci))) { ClearHud(); return; }
   uintptr_t *ciVt = *reinterpret_cast<uintptr_t **>(ci);
-  if (!ciVt || !IsValidPointer(reinterpret_cast<uintptr_t>(ciVt))) { ClearHud(); return; }
+  if (!ciVt || !IsValidPointer(reinterpret_cast<uintptr_t>(ciVt)) ||
+      !IsMemoryReadable(ciVt, 33 * sizeof(uintptr_t))) { ClearHud(); return; }
 
   // 0. 获取 LocalPlayer 并检测背包/容器界面是否打开 (ciVt[32] = getLocalPlayer)
   auto getPlayer = reinterpret_cast<void *(*)(void *)>(ciVt[32]);
@@ -99,16 +100,16 @@ void Discovery::onClientUpdate(void *ci) {
 
   // 2. region->slot(43) (offset 0x158): Level*
   uintptr_t *bsVt = *reinterpret_cast<uintptr_t **>(region);
-  if (!bsVt || !IsValidPointer(reinterpret_cast<uintptr_t>(bsVt))) { ClearHud(); return; }
+  if (!bsVt || !IsValidPointer(reinterpret_cast<uintptr_t>(bsVt)) ||
+      !IsMemoryReadable(bsVt, 44 * sizeof(uintptr_t))) { ClearHud(); return; }
   auto getLevel = reinterpret_cast<void *(*)(void *)>(bsVt[43]);
   if (!getLevel) { ClearHud(); return; }
   void *level = getLevel(region);
   if (!level || !IsValidPointer(reinterpret_cast<uintptr_t>(level))) { ClearHud(); return; }
 
   // 世界/维度变更检测：防止跨世界或死亡重生物品缓存污染
-  static void *sLastLevel = nullptr;
-  if (level != sLastLevel) {
-    sLastLevel = level;
+  if (level != mLastLevel) {
+    mLastLevel = level;
     ContainerCache::get().clear();
   }
 
@@ -211,21 +212,25 @@ void Discovery::onClientUpdate(void *ci) {
                         localizedName.c_str(), typeName.c_str(), dist,
                         blockPos[0], blockPos[1], blockPos[2],
                         toolRes.heldItemName.c_str(), toolRes.toolStatus.c_str());
+  size_t curLen = (n > 0) ? std::min(static_cast<size_t>(n), sizeof(buf) - 1) : 0;
 
   // 物理挖掘公式计算耗时
   float predSec = MiningCalculator::calculateMiningTime(typeName, toolRes.heldItemName, toolRes.canHarvest, toolRes.requiresTool, false, false);
-  if (predSec > 0.0f && n > 0 && static_cast<size_t>(n) < sizeof(buf)) {
-    n += std::snprintf(buf + n, sizeof(buf) - static_cast<size_t>(n),
-                       predSec <= 0.051f ? " | 预计: 瞬破 √" : " | 预计: %.2f秒", predSec);
+  if (predSec > 0.0f && curLen < sizeof(buf) - 1) {
+    int added = std::snprintf(buf + curLen, sizeof(buf) - curLen,
+                              predSec <= 0.051f ? " | 预计: 瞬破 √" : " | 预计: %.2f秒", predSec);
+    if (added > 0) {
+      curLen = std::min(curLen + static_cast<size_t>(added), sizeof(buf) - 1);
+    }
   }
 
-  if (n > 0 && static_cast<size_t>(n) < sizeof(buf) && miningProg > 0.001f) {
+  if (curLen < sizeof(buf) - 1 && miningProg > 0.001f) {
     if (predSec > 0.051f) {
       float remainSec = (1.0f - miningProg) * predSec;
-      std::snprintf(buf + n, sizeof(buf) - static_cast<size_t>(n), "\n挖掘进度: %.1f%% (剩余 %.1f秒)",
+      std::snprintf(buf + curLen, sizeof(buf) - curLen, "\n挖掘进度: %.1f%% (剩余 %.1f秒)",
                     miningProg * 100.0f, remainSec);
     } else {
-      std::snprintf(buf + n, sizeof(buf) - static_cast<size_t>(n), "\n挖掘进度: %.1f%%", miningProg * 100.0f);
+      std::snprintf(buf + curLen, sizeof(buf) - curLen, "\n挖掘进度: %.1f%%", miningProg * 100.0f);
     }
   }
 

@@ -26,6 +26,7 @@ private:
 
   int32_t mLastLookedPos[3]{0, 0, 0};
   bool mHasLookedPos = false;
+  void *mLastLevel = nullptr;
 };
 
 } // namespace highlight

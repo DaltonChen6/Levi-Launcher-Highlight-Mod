@@ -38,6 +38,14 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
   outData.hasContainer = true;
   bool isSmokerOrBlast = (typeName.find("smoker") != std::string::npos ||
                           typeName.find("blast") != std::string::npos);
+  if (typeName.find("smoker") != std::string::npos) {
+    outData.containerTitle = "烟熏炉";
+  } else if (typeName.find("blast") != std::string::npos) {
+    outData.containerTitle = "高炉";
+  } else {
+    outData.containerTitle = "熔炉";
+  }
+  bool isBlockLit = (typeName.find("lit_") != std::string::npos);
   int32_t defaultMaxCookTime = isSmokerOrBlast ? 100 : 200;
 
   // 严格对齐基岩版 FurnaceBlockActor 逆向内存真理：
@@ -76,7 +84,7 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
   bool cached = ContainerCache::get().getFurnace(posKey, sim);
 
   if (!cached || !sim.isInitialized) {
-    sim.litTime = (memLitTime > 0) ? memLitTime : 0;
+    sim.litTime = (isBlockLit && memLitTime > 0) ? memLitTime : 0;
     sim.litDuration = (memLitDuration > 0) ? memLitDuration : 1600;
     sim.cookTicks = (memCookTicks > 0) ? memCookTicks : 0;
     sim.maxCookTime = maxCookTime;
@@ -110,8 +118,10 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
       sim.resultCount = newOutCount;
     }
 
-    // 状态数据校准
-    if (memLitTime > 0) {
+    // 状态数据校准：熄灭状态强制清空 litTime，防止残留值触发假燃烧
+    if (!isBlockLit) {
+      sim.litTime = 0;
+    } else if (memLitTime > 0) {
       sim.litTime = memLitTime;
       if (memLitDuration > 0) sim.litDuration = memLitDuration;
     }
@@ -136,18 +146,26 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
             sim.inputCount--;
             sim.resultCount++;
             if (sim.resultName.empty() && !sim.inputRawId.empty()) {
-              if (sim.inputRawId.find("beef") != std::string::npos) sim.resultName = "熟牛肉";
-              else if (sim.inputRawId.find("porkchop") != std::string::npos) sim.resultName = "熟猪排";
-              else if (sim.inputRawId.find("mutton") != std::string::npos) sim.resultName = "熟羊肉";
-              else if (sim.inputRawId.find("chicken") != std::string::npos) sim.resultName = "熟鸡肉";
-              else if (sim.inputRawId.find("iron") != std::string::npos) sim.resultName = "铁锭";
-              else if (sim.inputRawId.find("gold") != std::string::npos) sim.resultName = "金锭";
-              else if (sim.inputRawId.find("copper") != std::string::npos) sim.resultName = "铜锭";
-              else if (sim.inputRawId.find("cobble") != std::string::npos) sim.resultName = "石头";
-              else if (sim.inputRawId.find("sand") != std::string::npos) sim.resultName = "玻璃";
-              else if (sim.inputRawId.find("potato") != std::string::npos) sim.resultName = "烤马铃薯";
-              else if (sim.inputRawId.find("kelp") != std::string::npos) sim.resultName = "干海带";
-              else if (sim.inputRawId.find("clay") != std::string::npos) sim.resultName = "红砖";
+              const auto &id = sim.inputRawId;
+              if (id.find("beef") != std::string::npos) sim.resultName = "熟牛肉";
+              else if (id.find("porkchop") != std::string::npos) sim.resultName = "熟猪排";
+              else if (id.find("mutton") != std::string::npos) sim.resultName = "熟羊肉";
+              else if (id.find("chicken") != std::string::npos) sim.resultName = "熟鸡肉";
+              else if (id.find("rabbit") != std::string::npos) sim.resultName = "熟兔肉";
+              else if (id.find("salmon") != std::string::npos) sim.resultName = "熟鲑鱼";
+              else if (id.find("cod") != std::string::npos) sim.resultName = "熟鳕鱼";
+              else if (id.find("iron") != std::string::npos) sim.resultName = "铁锭";
+              else if (id.find("gold") != std::string::npos) sim.resultName = "金锭";
+              else if (id.find("copper") != std::string::npos) sim.resultName = "铜锭";
+              else if (id.find("debris") != std::string::npos) sim.resultName = "下界合金碎片";
+              else if (id.find("cobbled_deepslate") != std::string::npos) sim.resultName = "深板岩";
+              else if (id.find("cobble") != std::string::npos) sim.resultName = "石头";
+              else if (id.find("stone") != std::string::npos) sim.resultName = "平滑石头";
+              else if (id.find("sand") != std::string::npos) sim.resultName = "玻璃";
+              else if (id.find("potato") != std::string::npos) sim.resultName = "烤马铃薯";
+              else if (id.find("kelp") != std::string::npos) sim.resultName = "干海带";
+              else if (id.find("clay") != std::string::npos) sim.resultName = "红砖";
+              else if (id.find("log") != std::string::npos || id.find("wood") != std::string::npos) sim.resultName = "木炭";
             }
             if (sim.inputCount == 0) {
               sim.cookTicks = 0;
@@ -158,7 +176,7 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
           sim.cookTicks = 0;
         }
 
-        if (sim.litTime <= 0 && sim.inputCount > 0 && sim.fuelCount > 0) {
+        if (sim.litTime <= 0 && sim.inputCount > 0 && sim.fuelCount > 0 && isBlockLit) {
           sim.fuelCount--;
           sim.litDuration = getFuelBurnDuration(sim.fuelRawId, 1600);
           sim.litTime = sim.litDuration;
@@ -168,7 +186,7 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
           sim.cookTicks -= deltaTicks * 2;
           if (sim.cookTicks < 0) sim.cookTicks = 0;
         }
-        if (sim.inputCount > 0 && sim.fuelCount > 0) {
+        if (isBlockLit && sim.inputCount > 0 && sim.fuelCount > 0) {
           sim.fuelCount--;
           sim.litDuration = getFuelBurnDuration(sim.fuelRawId, 1600);
           sim.litTime = sim.litDuration;
@@ -178,7 +196,6 @@ bool FurnaceHandler::inspect(void *blockActor, const std::string &typeName, int6
   }
 
   // 物理方块点亮状态兜底：若世界中方块本身已熄灭（非 lit_*），强制将燃烧时间归零，彻底根除幽灵燃烧倒计时
-  bool isBlockLit = (typeName.find("lit_") != std::string::npos);
   if (isBlockLit && sim.litTime <= 0) {
     sim.litTime = sim.litDuration > 0 ? sim.litDuration : 1600;
   } else if (!isBlockLit) {

@@ -12,22 +12,25 @@ bool ContainerInspector::notifyContainerGuiOpen(void *cm, const int32_t *lookedP
                                                 ContainerDisplayData &outData) {
   outData.clear();
   if (!cm || !IsValidPointer(reinterpret_cast<uintptr_t>(cm)) ||
-      !IsMemoryReadable(cm, 0x150)) {
+      !IsMemoryReadable(cm, 0xc8)) {
     return false;
   }
 
   // 1. 获取被打开容器的世界坐标 (LevelContainerManagerModel + 0x130 为 mBlockPos)
-  int32_t cx = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x130);
-  int32_t cy = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x134);
-  int32_t cz = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x138);
+  int32_t cx = 0, cy = 0, cz = 0;
+  if (IsMemoryReadable(reinterpret_cast<const void *>((uintptr_t)cm + 0x130), 12)) {
+    cx = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x130);
+    cy = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x134);
+    cz = *reinterpret_cast<const int32_t *>((uintptr_t)cm + 0x138);
+  }
 
-  int32_t targetPos[3] = {cx, cy, cz};
-  bool hasValidPos = (cy >= -64 && cy <= 320 && std::abs(cx) < 30000000 && std::abs(cz) < 30000000);
-  if (!hasValidPos && lookedPos && IsMemoryReadable(lookedPos, 12)) {
-    targetPos[0] = lookedPos[0];
-    targetPos[1] = lookedPos[1];
-    targetPos[2] = lookedPos[2];
-    hasValidPos = true;
+  bool hasLooked = (lookedPos && IsMemoryReadable(lookedPos, 12));
+  bool isCmPosValid = (cy >= -64 && cy <= 320 && std::abs(cx) < 30000000 && std::abs(cz) < 30000000 &&
+                       !(cx == 0 && cy == 0 && cz == 0));
+  bool lookedMatchesCm = false;
+  if (hasLooked && isCmPosValid) {
+    int32_t dist = std::abs(cx - lookedPos[0]) + std::abs(cy - lookedPos[1]) + std::abs(cz - lookedPos[2]);
+    lookedMatchesCm = (dist <= 2);
   }
 
   // 2. 委托专用解析模块遍历 mContainers 并过滤玩家背包
@@ -60,9 +63,11 @@ bool ContainerInspector::notifyContainerGuiOpen(void *cm, const int32_t *lookedP
     sim.lastUpdate = std::chrono::steady_clock::now();
     sim.isInitialized = true;
 
-    if (hasValidPos) {
-      int64_t posKey = PosToKey(targetPos[0], targetPos[1], targetPos[2]);
-      ContainerCache::get().setFurnace(posKey, sim);
+    if (isCmPosValid) {
+      ContainerCache::get().setFurnace(PosToKey(cx, cy, cz), sim);
+    }
+    if (hasLooked && (lookedMatchesCm || !isCmPosValid)) {
+      ContainerCache::get().setFurnace(PosToKey(lookedPos[0], lookedPos[1], lookedPos[2]), sim);
     }
 
     outData.hasContainer = true;
@@ -99,16 +104,19 @@ bool ContainerInspector::notifyContainerGuiOpen(void *cm, const int32_t *lookedP
   outData.mergedItems = parsed.mergedItems;
   outData.isUnsynced = false;
 
-  // 单坐标精准写入 ContainerCache 供关闭后高亮保持
-  if (hasValidPos) {
-    int64_t posKey = PosToKey(targetPos[0], targetPos[1], targetPos[2]);
-    ContainerCacheEntry entry;
-    entry.lastUpdated = std::chrono::steady_clock::now();
-    entry.totalSlots = parsed.totalSlots;
-    entry.filledSlots = parsed.filledSlots;
-    entry.mergedItems = parsed.mergedItems;
-    entry.isSynced = true;
-    ContainerCache::get().setContainer(posKey, entry);
+  // 双向高可靠缓存写入：优先准星目标坐标，其次 cm 物理坐标
+  ContainerCacheEntry entry;
+  entry.lastUpdated = std::chrono::steady_clock::now();
+  entry.totalSlots = parsed.totalSlots;
+  entry.filledSlots = parsed.filledSlots;
+  entry.mergedItems = parsed.mergedItems;
+  entry.isSynced = true;
+
+  if (isCmPosValid) {
+    ContainerCache::get().setContainer(PosToKey(cx, cy, cz), entry);
+  }
+  if (hasLooked && (lookedMatchesCm || !isCmPosValid)) {
+    ContainerCache::get().setContainer(PosToKey(lookedPos[0], lookedPos[1], lookedPos[2]), entry);
   }
 
   return true;
@@ -130,7 +138,8 @@ bool ContainerInspector::inspect(void *region, const int32_t *blockPos,
   int64_t posKey = PosToKey(blockPos[0], blockPos[1], blockPos[2]);
 
   uintptr_t *bsVt = *reinterpret_cast<uintptr_t **>(region);
-  if (!bsVt || !IsValidPointer(reinterpret_cast<uintptr_t>(bsVt)) || !bsVt[4]) {
+  if (!bsVt || !IsValidPointer(reinterpret_cast<uintptr_t>(bsVt)) ||
+      !IsMemoryReadable(bsVt, 5 * sizeof(uintptr_t)) || !bsVt[4]) {
     return false;
   }
 

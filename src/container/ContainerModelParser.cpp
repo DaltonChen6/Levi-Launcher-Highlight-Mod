@@ -6,7 +6,7 @@ namespace highlight {
 bool ContainerModelParser::parse(void *cm, ParsedContainerResult &out) {
   out = ParsedContainerResult{};
   if (!cm || !IsValidPointer(reinterpret_cast<uintptr_t>(cm)) ||
-      !IsMemoryReadable(cm, 0x150)) {
+      !IsMemoryReadable(cm, 0xc8)) {
     return false;
   }
 
@@ -74,8 +74,10 @@ bool ContainerModelParser::parse(void *cm, ParsedContainerResult &out) {
       uintptr_t begin = *reinterpret_cast<const uintptr_t *>(cmModel + 0xd8);
       uintptr_t end = *reinterpret_cast<const uintptr_t *>(cmModel + 0xe0);
 
-      if (IsValidPointer(begin) && IsValidPointer(end) && end >= begin) {
-        size_t count = (end - begin) / 152;
+      uintptr_t m_begin = begin & kTagMask;
+      uintptr_t m_end = end & kTagMask;
+      if (IsValidPointer(begin) && IsValidPointer(end) && m_end >= m_begin && ((m_end - m_begin) % 152 == 0)) {
+        size_t count = (m_end - m_begin) / 152;
         if (count >= 1 && count <= 108) {
           out.foundContainer = true;
 

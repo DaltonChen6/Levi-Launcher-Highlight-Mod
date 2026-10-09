@@ -21,19 +21,27 @@ float MiningCalculator::calculateMiningTime(const std::string &typeName, const s
   else if (typeName.find("wool") != std::string::npos) hardness = 0.8f;
   else if (typeName.find("dirt") != std::string::npos || typeName.find("sand") != std::string::npos ||
            typeName.find("gravel") != std::string::npos || typeName.find("clay") != std::string::npos) hardness = 0.5f;
+  else if (typeName.find("hard_glass") != std::string::npos || typeName.find("hardened_glass") != std::string::npos) hardness = 10.0f;
   else if (typeName.find("glass") != std::string::npos) hardness = 0.3f;
   else if (typeName.find("leaves") != std::string::npos) hardness = 0.2f;
   else if (typeName.find("bedrock") != std::string::npos || typeName.find("barrier") != std::string::npos) return -1.0f;
 
-  // 2. 基础工具速率倍率 (Tool Multiplier)
+  // 2. 基础工具速率倍率 (Tool Multiplier，仅对手持真实工具生效，杜绝木板/钻石/金合欢木误判)
   float speedMultiplier = 1.0f;
-  if (heldItem.find("下界合金") != std::string::npos || heldItem.find("netherite") != std::string::npos) speedMultiplier = 9.0f;
-  else if (heldItem.find("钻石") != std::string::npos || heldItem.find("diamond") != std::string::npos) speedMultiplier = 8.0f;
-  else if (heldItem.find("铁") != std::string::npos || heldItem.find("iron") != std::string::npos) speedMultiplier = 6.0f;
-  else if (heldItem.find("石") != std::string::npos || heldItem.find("stone") != std::string::npos) speedMultiplier = 4.0f;
-  else if (heldItem.find("木") != std::string::npos || heldItem.find("wood") != std::string::npos) speedMultiplier = 2.0f;
-  else if (heldItem.find("金") != std::string::npos || heldItem.find("gold") != std::string::npos) speedMultiplier = 12.0f;
-  else if (heldItem.find("剪刀") != std::string::npos || heldItem.find("shears") != std::string::npos) {
+  bool isTool = (heldItem.find("镐") != std::string::npos || heldItem.find("pickaxe") != std::string::npos ||
+                 heldItem.find("斧") != std::string::npos || heldItem.find("axe") != std::string::npos ||
+                 heldItem.find("锹") != std::string::npos || heldItem.find("铲") != std::string::npos ||
+                 heldItem.find("shovel") != std::string::npos ||
+                 heldItem.find("锄") != std::string::npos || heldItem.find("hoe") != std::string::npos ||
+                 heldItem.find("剑") != std::string::npos || heldItem.find("sword") != std::string::npos);
+  if (isTool) {
+    if (heldItem.find("下界合金") != std::string::npos || heldItem.find("netherite") != std::string::npos) speedMultiplier = 9.0f;
+    else if (heldItem.find("钻石") != std::string::npos || heldItem.find("diamond") != std::string::npos) speedMultiplier = 8.0f;
+    else if (heldItem.find("铁") != std::string::npos || heldItem.find("iron") != std::string::npos) speedMultiplier = 6.0f;
+    else if (heldItem.find("石") != std::string::npos || heldItem.find("stone") != std::string::npos) speedMultiplier = 4.0f;
+    else if (heldItem.find("金") != std::string::npos || heldItem.find("gold") != std::string::npos) speedMultiplier = 12.0f;
+    else if (heldItem.find("木") != std::string::npos || heldItem.find("wood") != std::string::npos) speedMultiplier = 2.0f;
+  } else if (heldItem.find("剪刀") != std::string::npos || heldItem.find("shears") != std::string::npos) {
     if (typeName.find("leaves") != std::string::npos || typeName.find("cobweb") != std::string::npos) speedMultiplier = 15.0f;
     else if (typeName.find("wool") != std::string::npos) speedMultiplier = 5.0f;
   }

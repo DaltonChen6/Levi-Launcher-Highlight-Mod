@@ -7300,7 +7300,7 @@ public:
   // 手持物品名称本地化翻译
   static std::string translateItem(std::string_view identifier) {
     if (identifier.empty()) {
-      return "空手 / 其他物品";
+      return "空手";
     }
     std::string key(identifier);
     if (key.rfind("minecraft:", 0) == 0) {
@@ -7319,73 +7319,114 @@ public:
       key = key.substr(0, key.size() - 8);
     }
 
-    if (key == "fishing_rod") return "钓鱼竿 (Fishing Rod)";
-    if (key == "netherite_pickaxe") return "下界合金镐 (Netherite Pickaxe)";
-    if (key == "diamond_pickaxe") return "钻石镐 (Diamond Pickaxe)";
-    if (key == "iron_pickaxe") return "铁镐 (Iron Pickaxe)";
-    if (key == "golden_pickaxe") return "金镐 (Golden Pickaxe)";
-    if (key == "stone_pickaxe") return "石镐 (Stone Pickaxe)";
-    if (key == "wooden_pickaxe") return "木镐 (Wooden Pickaxe)";
-    if (key.find("pickaxe") != std::string::npos) return "镐 (Pickaxe)";
+    if (key == "fishing_rod") return "钓鱼竿";
+    if (key == "netherite_pickaxe") return "下界合金镐";
+    if (key == "diamond_pickaxe") return "钻石镐";
+    if (key == "iron_pickaxe") return "铁镐";
+    if (key == "golden_pickaxe") return "金镐";
+    if (key == "stone_pickaxe") return "石镐";
+    if (key == "wooden_pickaxe") return "木镐";
+    if (key.find("pickaxe") != std::string::npos) return "镐";
 
-    if (key == "netherite_axe") return "下界合金斧 (Netherite Axe)";
-    if (key == "diamond_axe") return "钻石斧 (Diamond Axe)";
-    if (key == "iron_axe") return "铁斧 (Iron Axe)";
-    if (key == "golden_axe") return "金斧 (Golden Axe)";
-    if (key == "stone_axe") return "石斧 (Stone Axe)";
-    if (key == "wooden_axe") return "木斧 (Wooden Axe)";
-    if (key.find("axe") != std::string::npos) return "斧 (Axe)";
+    if (key == "netherite_axe") return "下界合金斧";
+    if (key == "diamond_axe") return "钻石斧";
+    if (key == "iron_axe") return "铁斧";
+    if (key == "golden_axe") return "金斧";
+    if (key == "stone_axe") return "石斧";
+    if (key == "wooden_axe") return "木斧";
+    if (key.find("axe") != std::string::npos) return "斧";
 
-    if (key == "netherite_shovel") return "下界合金锹 (Netherite Shovel)";
-    if (key == "diamond_shovel") return "钻石锹 (Diamond Shovel)";
-    if (key == "iron_shovel") return "铁锹 (Iron Shovel)";
-    if (key == "golden_shovel") return "金锹 (Golden Shovel)";
-    if (key == "stone_shovel") return "石锹 (Stone Shovel)";
-    if (key == "wooden_shovel") return "木锹 (Wooden Shovel)";
-    if (key.find("shovel") != std::string::npos) return "锹 (Shovel)";
+    if (key == "netherite_shovel") return "下界合金锹";
+    if (key == "diamond_shovel") return "钻石锹";
+    if (key == "iron_shovel") return "铁锹";
+    if (key == "golden_shovel") return "金锹";
+    if (key == "stone_shovel") return "石锹";
+    if (key == "wooden_shovel") return "木锹";
+    if (key.find("shovel") != std::string::npos) return "锹";
 
-    if (key == "netherite_sword") return "下界合金剑 (Netherite Sword)";
-    if (key == "diamond_sword") return "钻石剑 (Diamond Sword)";
-    if (key == "iron_sword") return "铁剑 (Iron Sword)";
-    if (key == "golden_sword") return "金剑 (Golden Sword)";
-    if (key == "stone_sword") return "石剑 (Stone Sword)";
-    if (key == "wooden_sword") return "木剑 (Wooden Sword)";
-    if (key.find("sword") != std::string::npos) return "剑 (Sword)";
+    if (key == "netherite_sword") return "下界合金剑";
+    if (key == "diamond_sword") return "钻石剑";
+    if (key == "iron_sword") return "铁剑";
+    if (key == "golden_sword") return "金剑";
+    if (key == "stone_sword") return "石剑";
+    if (key == "wooden_sword") return "木剑";
+    if (key.find("sword") != std::string::npos) return "剑";
 
-    if (key == "netherite_hoe") return "下界合金锄 (Netherite Hoe)";
-    if (key == "diamond_hoe") return "钻石锄 (Diamond Hoe)";
-    if (key == "iron_hoe") return "铁锄 (Iron Hoe)";
-    if (key == "golden_hoe") return "金锄 (Golden Hoe)";
-    if (key == "stone_hoe") return "石锄 (Stone Hoe)";
-    if (key == "wooden_hoe") return "木锄 (Wooden Hoe)";
-    if (key.find("hoe") != std::string::npos) return "锄 (Hoe)";
+    if (key == "netherite_hoe") return "下界合金锄";
+    if (key == "diamond_hoe") return "钻石锄";
+    if (key == "iron_hoe") return "铁锄";
+    if (key == "golden_hoe") return "金锄";
+    if (key == "stone_hoe") return "石锄";
+    if (key == "wooden_hoe") return "木锄";
+    if (key.find("hoe") != std::string::npos) return "锄";
 
-    if (key == "mace") return "重锤 (Mace)";
-    if (key == "trident") return "三叉戟 (Trident)";
-    if (key == "shield") return "盾牌 (Shield)";
-    if (key.find("shears") != std::string::npos) return "剪刀 (Shears)";
-    if (key.find("crossbow") != std::string::npos) return "弩 (Crossbow)";
-    if (key.find("bow") != std::string::npos) return "弓 (Bow)";
+    if (key == "mace") return "重锤";
+    if (key == "trident") return "三叉戟";
+    if (key == "shield") return "盾牌";
+    if (key.find("shears") != std::string::npos) return "剪刀";
+    if (key.find("crossbow") != std::string::npos) return "弩";
+    if (key.find("bow") != std::string::npos) return "弓";
 
-    if (key == "flint_and_steel") return "打火石 (Flint and Steel)";
-    if (key == "brush") return "刷子 (Brush)";
-    if (key == "compass") return "指南针 (Compass)";
-    if (key == "recovery_compass") return "追溯指南针 (Recovery Compass)";
-    if (key == "clock") return "时钟 (Clock)";
-    if (key == "spyglass") return "望远镜 (Spyglass)";
-    if (key == "lead") return "拴绳 (Lead)";
-    if (key == "name_tag") return "命名牌 (Name Tag)";
-    if (key == "bucket") return "空桶 (Bucket)";
-    if (key == "water_bucket") return "水桶 (Water Bucket)";
-    if (key == "lava_bucket") return "岩浆桶 (Lava Bucket)";
-    if (key == "milk_bucket") return "牛奶桶 (Milk Bucket)";
-    if (key == "powder_snow_bucket") return "细雪桶 (Powder Snow Bucket)";
-    if (key == "totem_of_undying") return "不死图腾 (Totem of Undying)";
-    if (key == "elytra") return "鞘翅 (Elytra)";
-    if (key == "firework_rocket") return "烟花火箭 (Firework Rocket)";
-    if (key == "ender_pearl") return "末影珍珠 (Ender Pearl)";
-    if (key == "eye_of_ender") return "末影之眼 (Eye of Ender)";
-    if (key == "bone_meal") return "骨粉 (Bone Meal)";
+    if (key == "flint_and_steel") return "打火石";
+    if (key == "brush") return "刷子";
+    if (key == "compass") return "指南针";
+    if (key == "recovery_compass") return "追溯指南针";
+    if (key == "clock") return "时钟";
+    if (key == "spyglass") return "望远镜";
+    if (key == "lead") return "拴绳";
+    if (key == "name_tag") return "命名牌";
+    if (key == "bucket") return "空桶";
+    if (key == "water_bucket") return "水桶";
+    if (key == "lava_bucket") return "岩浆桶";
+    if (key == "milk_bucket") return "牛奶桶";
+    if (key == "powder_snow_bucket") return "细雪桶";
+    if (key == "totem_of_undying") return "不死图腾";
+    if (key == "elytra") return "鞘翅";
+    if (key == "firework_rocket") return "烟花火箭";
+    if (key == "ender_pearl") return "末影珍珠";
+    if (key == "eye_of_ender") return "末影之眼";
+    if (key == "bone_meal") return "骨粉";
+
+    if (key == "coal") return "煤炭";
+    if (key == "charcoal") return "木炭";
+    if (key == "raw_iron") return "粗铁";
+    if (key == "raw_gold") return "粗金";
+    if (key == "raw_copper") return "粗铜";
+    if (key == "iron_ingot") return "铁锭";
+    if (key == "gold_ingot") return "金锭";
+    if (key == "copper_ingot") return "铜锭";
+    if (key == "netherite_ingot") return "下界合金锭";
+    if (key == "netherite_scrap") return "下界合金碎片";
+    if (key == "diamond") return "钻石";
+    if (key == "emerald") return "绿宝石";
+    if (key == "lapis_lazuli") return "青金石";
+    if (key == "redstone") return "红石";
+    if (key == "stick") return "木棍";
+    if (key == "bread") return "面包";
+    if (key == "apple") return "苹果";
+    if (key == "golden_apple") return "金苹果";
+    if (key == "enchanted_golden_apple") return "附魔金苹果";
+    if (key == "beef") return "生牛肉";
+    if (key == "cooked_beef") return "熟牛肉";
+    if (key == "porkchop") return "生猪排";
+    if (key == "cooked_porkchop") return "熟猪排";
+    if (key == "mutton") return "生羊肉";
+    if (key == "cooked_mutton") return "熟羊肉";
+    if (key == "chicken") return "生鸡肉";
+    if (key == "cooked_chicken") return "熟鸡肉";
+    if (key == "cod") return "生鳕鱼";
+    if (key == "cooked_cod") return "熟鳕鱼";
+    if (key == "salmon") return "生鲑鱼";
+    if (key == "cooked_salmon") return "熟鲑鱼";
+    if (key == "torch") return "火把";
+    if (key == "soul_torch") return "灵魂火把";
+    if (key == "crafting_table") return "工作台";
+    if (key == "chest") return "箱子";
+    if (key == "cobblestone") return "圆石";
+    if (key == "stone") return "石头";
+    if (key == "dirt") return "泥土";
+    if (key == "sand") return "沙子";
+    if (key == "gravel") return "沙砾";
 
     // 若手持方块或在字典中，则自动本地化
     std::string blockName = toChinese(key);
@@ -7393,7 +7434,7 @@ public:
       return blockName;
     }
 
-    return "物品 (" + key + ")";
+    return key;
   }
 };
 

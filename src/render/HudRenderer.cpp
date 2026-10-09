@@ -238,7 +238,24 @@ bool InitHudRenderer() {
 }
 
 void ShutdownHudRenderer() {
-  gHooked = false;
+  if (gHooked) {
+    if (gSwapBuffersTarget && gOrigSwapBuffers) {
+      pl::memory::unhook(gSwapBuffersTarget, reinterpret_cast<pl::memory::FuncPtr>(SwapBuffersDetour));
+      gSwapBuffersTarget = nullptr;
+      gOrigSwapBuffers = nullptr;
+    }
+    if (gSwapBuffersDamageTarget && gOrigSwapBuffersDamage) {
+      pl::memory::unhook(gSwapBuffersDamageTarget, reinterpret_cast<pl::memory::FuncPtr>(SwapBuffersWithDamageDetour));
+      gSwapBuffersDamageTarget = nullptr;
+      gOrigSwapBuffersDamage = nullptr;
+    }
+    gHooked = false;
+  }
+  if (gImguiReady) {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui::DestroyContext();
+    gImguiReady = false;
+  }
 }
 
 } // namespace highlight

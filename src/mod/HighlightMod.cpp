@@ -134,28 +134,43 @@ bool HighlightMod::enable() {
   uintptr_t startDestroy = pl::memory::resolveVtableFunction("8GameMode", 2, "libminecraftpe.so");
   if (startDestroy) {
     gStartDestroyTarget = reinterpret_cast<void *>(startDestroy);
-    pl::memory::hook(gStartDestroyTarget,
-                     reinterpret_cast<pl::memory::FuncPtr>(StartDestroyBlockDetour),
-                     reinterpret_cast<pl::memory::FuncPtr *>(&gOrigStartDestroyBlock));
-    __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::startDestroyBlock @ %p", gStartDestroyTarget);
+    int rc = pl::memory::hook(gStartDestroyTarget,
+                              reinterpret_cast<pl::memory::FuncPtr>(StartDestroyBlockDetour),
+                              reinterpret_cast<pl::memory::FuncPtr *>(&gOrigStartDestroyBlock));
+    if (rc == 0) {
+      __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::startDestroyBlock @ %p", gStartDestroyTarget);
+    } else {
+      gStartDestroyTarget = nullptr;
+      gOrigStartDestroyBlock = nullptr;
+    }
   }
 
   uintptr_t contDestroy = pl::memory::resolveVtableFunction("8GameMode", 4, "libminecraftpe.so");
   if (contDestroy) {
     gContinueDestroyTarget = reinterpret_cast<void *>(contDestroy);
-    pl::memory::hook(gContinueDestroyTarget,
-                     reinterpret_cast<pl::memory::FuncPtr>(ContinueDestroyBlockDetour),
-                     reinterpret_cast<pl::memory::FuncPtr *>(&gOrigContinueDestroyBlock));
-    __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::continueDestroyBlock @ %p", gContinueDestroyTarget);
+    int rc = pl::memory::hook(gContinueDestroyTarget,
+                              reinterpret_cast<pl::memory::FuncPtr>(ContinueDestroyBlockDetour),
+                              reinterpret_cast<pl::memory::FuncPtr *>(&gOrigContinueDestroyBlock));
+    if (rc == 0) {
+      __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::continueDestroyBlock @ %p", gContinueDestroyTarget);
+    } else {
+      gContinueDestroyTarget = nullptr;
+      gOrigContinueDestroyBlock = nullptr;
+    }
   }
 
   uintptr_t stopDestroy = pl::memory::resolveVtableFunction("8GameMode", 5, "libminecraftpe.so");
   if (stopDestroy) {
     gStopDestroyTarget = reinterpret_cast<void *>(stopDestroy);
-    pl::memory::hook(gStopDestroyTarget,
-                     reinterpret_cast<pl::memory::FuncPtr>(StopDestroyBlockDetour),
-                     reinterpret_cast<pl::memory::FuncPtr *>(&gOrigStopDestroyBlock));
-    __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::stopDestroyBlock @ %p", gStopDestroyTarget);
+    int rc = pl::memory::hook(gStopDestroyTarget,
+                              reinterpret_cast<pl::memory::FuncPtr>(StopDestroyBlockDetour),
+                              reinterpret_cast<pl::memory::FuncPtr *>(&gOrigStopDestroyBlock));
+    if (rc == 0) {
+      __android_log_print(ANDROID_LOG_INFO, "VH", "hooked GameMode::stopDestroyBlock @ %p", gStopDestroyTarget);
+    } else {
+      gStopDestroyTarget = nullptr;
+      gOrigStopDestroyBlock = nullptr;
+    }
   }
 
   // 3. 安装设备原生多语言本地化引擎 (动态拦截 8I18nImpl，优先获取玩家自选语言与材质包自定义译名)
@@ -200,22 +215,22 @@ bool HighlightMod::disable() {
   pl::modmenu::unregisterModule("visual_highlight");
   ShutdownHudRenderer();
   if (gClientInstanceUpdateTarget && gOrigClientInstanceUpdate) {
-    pl::memory::unhook(gClientInstanceUpdateTarget, reinterpret_cast<pl::memory::FuncPtr>(&ClientInstanceUpdateDetour));
+    pl::memory::unhook(gClientInstanceUpdateTarget, reinterpret_cast<pl::memory::FuncPtr>(ClientInstanceUpdateDetour));
     gClientInstanceUpdateTarget = nullptr;
     gOrigClientInstanceUpdate = nullptr;
   }
   if (gStartDestroyTarget && gOrigStartDestroyBlock) {
-    pl::memory::unhook(gStartDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(&StartDestroyBlockDetour));
+    pl::memory::unhook(gStartDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(StartDestroyBlockDetour));
     gStartDestroyTarget = nullptr;
     gOrigStartDestroyBlock = nullptr;
   }
   if (gContinueDestroyTarget && gOrigContinueDestroyBlock) {
-    pl::memory::unhook(gContinueDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(&ContinueDestroyBlockDetour));
+    pl::memory::unhook(gContinueDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(ContinueDestroyBlockDetour));
     gContinueDestroyTarget = nullptr;
     gOrigContinueDestroyBlock = nullptr;
   }
   if (gStopDestroyTarget && gOrigStopDestroyBlock) {
-    pl::memory::unhook(gStopDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(&StopDestroyBlockDetour));
+    pl::memory::unhook(gStopDestroyTarget, reinterpret_cast<pl::memory::FuncPtr>(StopDestroyBlockDetour));
     gStopDestroyTarget = nullptr;
     gOrigStopDestroyBlock = nullptr;
   }

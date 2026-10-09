@@ -62,7 +62,9 @@ ToolEvaluationResult ToolStatusEvaluator::evaluate(void *player, void *block,
 
           // Item::canDestroySpecial (slot 34 @ 0x110)
           uintptr_t *itemVt = *reinterpret_cast<uintptr_t **>(item);
-          if (itemVt && IsValidPointer(reinterpret_cast<uintptr_t>(itemVt)) && itemVt[34]) {
+          if (itemVt && IsValidPointer(reinterpret_cast<uintptr_t>(itemVt)) &&
+              IsMemoryReadable(itemVt, 35 * sizeof(uintptr_t)) &&
+              itemVt[34] && IsValidFunctionPointer(itemVt[34])) {
             auto canDestroy = reinterpret_cast<bool (*)(void *, void *)>(itemVt[34]);
             res.canHarvest = canDestroy(item, block);
           }
@@ -88,6 +90,10 @@ ToolEvaluationResult ToolStatusEvaluator::evaluate(void *player, void *block,
         }
       }
     }
+  }
+
+  if (res.heldItemName.empty()) {
+    res.heldItemName = "空手";
   }
 
   if (res.toolStatus.empty()) {

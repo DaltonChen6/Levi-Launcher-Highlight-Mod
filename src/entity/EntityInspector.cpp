@@ -94,8 +94,6 @@ bool EntityInspector::inspect(uintptr_t hitPtr, EntityDisplayData &entityData) {
       entityData.rawId = "minecraft:horse";
     } else if (boxHeight > 0.75f && boxHeight < 1.0f && boxWidth < 0.7f) {
       entityData.rawId = "minecraft:wolf";
-    } else if (boxHeight > 1.8f && boxHeight < 2.1f && boxWidth < 0.8f) {
-      entityData.rawId = "minecraft:villager";
     } else if (boxHeight > 1.2f && boxHeight < 1.5f) {
       entityData.rawId = "minecraft:cow";
     } else if (boxHeight < 0.8f && boxWidth < 0.6f) {
@@ -112,6 +110,7 @@ bool EntityInspector::inspect(uintptr_t hitPtr, EntityDisplayData &entityData) {
     entityData.name = loc;
   } else {
     static const struct { const char *id; const char *cn; float defHp; } kEntities[] = {
+      {"entity", "生物", 20.0f},
       {"horse", "马", 24.0f},
       {"donkey", "驴", 20.0f},
       {"mule", "骡", 20.0f},
@@ -153,33 +152,14 @@ bool EntityInspector::inspect(uintptr_t hitPtr, EntityDisplayData &entityData) {
     entityData.maxHp = 20.0f;
   }
 
-  // 5. 专属生物特征计算
-  if (cleanId.find("horse") != std::string::npos || cleanId.find("donkey") != std::string::npos) {
-    entityData.isHorse = true;
-    float jumpStrength = 0.72f;
-    float moveSpeed = 0.225f;
-    entityData.horseSpeed = 43.17f * moveSpeed;
-    float x = jumpStrength;
-    entityData.horseJump = -0.1817584952f * x * x * x + 3.689713992f * x * x + 2.128599134f * x - 0.343930367f;
-    if (entityData.horseJump < 1.0f) entityData.horseJump = 1.0f;
-  } else if (cleanId == "wolf") {
-    entityData.isWolf = true;
-    entityData.wolfArmor = 1.0f;
-    entityData.collarColor = "红色";
-  } else if (cleanId.find("villager") != std::string::npos) {
-    entityData.isVillager = true;
-    entityData.profession = "村民";
-    entityData.villagerLevel = 2;
-  } else if (cleanId == "iron_golem") {
+  // 5. 专属生物特征计算 (严禁编造未经验证的数据，仅在真实数据有效时设置)
+  if (cleanId == "iron_golem" && entityData.maxHp > 0.0f) {
     entityData.isIronGolem = true;
     float ratio = entityData.hp / entityData.maxHp;
     if (ratio > 0.75f) entityData.crackLevel = 0;
     else if (ratio > 0.50f) entityData.crackLevel = 1;
     else if (ratio > 0.25f) entityData.crackLevel = 2;
     else entityData.crackLevel = 3;
-  } else if (cleanId == "warden") {
-    entityData.isWarden = true;
-    entityData.angerLevel = 45;
   }
 
   return true;
