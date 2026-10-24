@@ -1,6 +1,6 @@
 # Levi-Launcher-Highlight-Mod (VisualHighlight)
 
-Minecraft 基岩版（Bedrock Edition 1.21.x ~ 1.26.x）可视化高亮显示模组，基于 LeviLaunchroid（微风启动器）`preload-native` 原生模组（`.levipack`）架构开发。
+Minecraft 基岩版（Bedrock Edition 1.21.x ~ 1.26.x）可视化高亮显示模组，基于 LeviLaunchroid `preload-native` 原生模组（`.levipack`）架构开发。
 
 ## 项目特点
 
